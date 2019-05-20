@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os/exec"
 	"encoding/json"
 	"strings"
@@ -13,9 +14,10 @@ import (
 	"io/ioutil"
 	"io"
 	"time"
+	"fmt"
 )
 var (
-	ShellPath="D:\\go_project\\src\\webhook\\gitpull.sh"
+	// ShellPath="D:\\go_project\\src\\webhook\\gitpull.sh"
 	password="1q2w3e4r5t6y7u"
 	Queue =make(chan struct{},100)
 	QuitChan=make(chan struct{})
@@ -51,13 +53,13 @@ func userpusheventHandle(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte("密码错误，无效请求"))
 }
 
-func exeshell(){
+func exeshell(path string){
 	for {
 		select {
 		case e:=<- Queue:
 			log.Println(e)
 			log.Println("执行脚本")
-			cmd:=exec.Command("sh",ShellPath)
+			cmd:=exec.Command("sh",path)
 			out,err:=cmd.CombinedOutput()
 			if err!=nil{
 				log.Printf("cmd.Run() faild with %s .\n",err)
@@ -73,18 +75,24 @@ func exeshell(){
 }
 
 func main() {
+	ShellPath:=flag.String("path", "./gitpull.sh", "shell file path")
+	port:=flag.Int("port",10066,"http linsten port.")
+	flag.Parse()
+	// log.Println(*ShellPath,*port)
+	flag.Usage()
+
 	sigs := make(chan os.Signal)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	http.HandleFunc("/gitee/pushevent", userpusheventHandle)
 	go func() {
-		err := http.ListenAndServe(":10066", nil)
+		err := http.ListenAndServe(fmt.Sprintf(":%d",*port), nil)
 		if err != nil {
 			log.Fatalln("server 启动错误", err)
 			panic(err)
 		}
 	}()
-	go exeshell()
-	log.Println("server 启动成功")
+	go exeshell(*ShellPath)
+	log.Println("server 启动成功,监听端口：",*port)
 	<-sigs
 	QuitChan<-struct{}{}
 	log.Println("server 退出成功")
