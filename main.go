@@ -15,6 +15,7 @@ import (
 	"io"
 	"time"
 	"fmt"
+	"runtime"
 )
 var (
 	// ShellPath="D:\\go_project\\src\\webhook\\gitpull.sh"
@@ -59,8 +60,15 @@ func exeshell(path string){
 		case e:=<- Queue:
 			log.Println(e)
 			log.Println("执行脚本")
-			cmd:=exec.Command("sh",path)
-			out,err:=cmd.CombinedOutput()
+			var out []byte
+			var err error
+			if runtime.GOOS == "windows"{
+				cmd:=exec.Command("sh","-c",path)
+				out,err=cmd.CombinedOutput()
+			}else{
+				cmd:=exec.Command("/bin/bash","-c",path)
+				out,err=cmd.CombinedOutput()
+			}
 			if err!=nil{
 				log.Printf("cmd.Run() faild with %s .\n",err)
 			}
